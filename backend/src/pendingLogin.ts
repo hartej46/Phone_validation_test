@@ -1,4 +1,4 @@
-import { RedisClientType } from "redis";
+import type { IKeyValueStore } from "./storage.js";
 
 export interface PendingLoginData {
   verificationSessionId: string;
@@ -12,7 +12,7 @@ const PENDING_PREFIX = "pending_login:";
 const PENDING_TTL = 300; // 5 minutes
 
 export class PendingLoginService {
-  constructor(private redis: RedisClientType) {}
+  constructor(private store: IKeyValueStore) {}
 
   async setPending(verificationSessionId: string, phoneNumber: string): Promise<void> {
     const data: PendingLoginData = {
@@ -21,7 +21,7 @@ export class PendingLoginService {
       createdAt: Date.now(),
       status: "pending",
     };
-    await this.redis.set(
+    await this.store.set(
       `${PENDING_PREFIX}${verificationSessionId}`,
       JSON.stringify(data),
       { EX: PENDING_TTL }
@@ -29,7 +29,7 @@ export class PendingLoginService {
   }
 
   async getPending(verificationSessionId: string): Promise<PendingLoginData | null> {
-    const raw = await this.redis.get(`${PENDING_PREFIX}${verificationSessionId}`);
+    const raw = await this.store.get(`${PENDING_PREFIX}${verificationSessionId}`);
     if (!raw) return null;
     try {
       return JSON.parse(raw) as PendingLoginData;
@@ -45,7 +45,7 @@ export class PendingLoginService {
     pending.status = "verified";
     pending.userSessionId = userSessionId;
 
-    await this.redis.set(
+    await this.store.set(
       `${PENDING_PREFIX}${verificationSessionId}`,
       JSON.stringify(pending),
       { EX: PENDING_TTL }

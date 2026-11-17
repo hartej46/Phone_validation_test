@@ -1,13 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import request from "supertest";
 import crypto from "crypto";
-import { createClient, RedisClientType } from "redis";
 import { createApp } from "../src/app.js";
-import { createRedisStorageAdapter } from "../src/redis.js";
+import { InMemoryKeyValueStore, InMemoryStorageAdapter } from "../src/storage.js";
 import { config } from "../src/config.js";
 
 describe("Angelos WhatsApp Authentication Integration Tests", () => {
-  let redis: RedisClientType;
+  let store: InMemoryKeyValueStore;
   let app: ReturnType<typeof createApp>;
 
   const testAppSecret = "test_meta_app_secret_123456789";
@@ -20,31 +19,13 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
     config.metaWebhookVerifyToken = testVerifyToken;
     config.metaAppSecret = testAppSecret;
 
-    redis = createClient({ url: config.redisUrl });
-    await redis.connect();
-
-    const storage = createRedisStorageAdapter(redis);
-    app = createApp(redis, storage);
-  });
-
-  afterAll(async () => {
-    await redis.quit();
+    store = new InMemoryKeyValueStore();
+    const storage = new InMemoryStorageAdapter(store);
+    app = createApp(store, storage);
   });
 
   beforeEach(async () => {
-    // Clean up test keys
-    const keys = await redis.keys("wa_verify:*");
-    if (keys.length > 0) {
-      await redis.del(keys);
-    }
-    const pendingKeys = await redis.keys("pending_login:*");
-    if (pendingKeys.length > 0) {
-      await redis.del(pendingKeys);
-    }
-    const sessionKeys = await redis.keys("app_session:*");
-    if (sessionKeys.length > 0) {
-      await redis.del(sessionKeys);
-    }
+    store.clear();
   });
 
   function createSignedMetaPayload(payload: any, secret: string = testAppSecret) {
@@ -106,7 +87,7 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
     const sessionId = loginRes.body.sessionId;
 
     // Read stored token from Redis to build realistic WhatsApp reply
-    const rawStored = await redis.get(`wa_verify:${phone}`);
+    const rawStored = await store.get(`wa_verify:${phone}`);
     expect(rawStored).toBeTruthy();
     const { token } = JSON.parse(rawStored!);
 
@@ -233,7 +214,7 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
       .send({ phoneNumber: expectedPhone });
 
     const sessionId = loginRes.body.sessionId;
-    const rawStored = await redis.get(`wa_verify:${expectedPhone}`);
+    const rawStored = await store.get(`wa_verify:${expectedPhone}`);
     const { token } = JSON.parse(rawStored!);
 
     const metaPayload = {
@@ -289,7 +270,7 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
       .send({ phoneNumber: phone });
 
     const sessionId = loginRes.body.sessionId;
-    const rawStored = await redis.get(`wa_verify:${phone}`);
+    const rawStored = await store.get(`wa_verify:${phone}`);
     const { token } = JSON.parse(rawStored!);
 
     const metaPayload = {
@@ -349,10 +330,10 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
     const sessionId = loginRes.body.sessionId;
 
     // Simulate expired session in redis (set expiresAt to past and expire key)
-    const rawStored = await redis.get(`wa_verify:${phone}`);
+    const rawStored = await store.get(`wa_verify:${phone}`);
     const stored = JSON.parse(rawStored!);
     stored.expiresAt = Date.now() - 10000;
-    await redis.set(`wa_verify:${phone}`, JSON.stringify(stored));
+    await store.set(`wa_verify:${phone}`, JSON.stringify(stored));
 
     const metaPayload = {
       object: "whatsapp_business_account",
@@ -407,7 +388,7 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
       .send({ phoneNumber: phone });
 
     const sessionId = loginRes.body.sessionId;
-    const rawStored = await redis.get(`wa_verify:${phone}`);
+    const rawStored = await store.get(`wa_verify:${phone}`);
     const { token } = JSON.parse(rawStored!);
 
     const metaPayload = {
@@ -490,7 +471,7 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
       async delete() { throw new Error("Redis del error"); },
     };
 
-    const appWithFailingStorage = createApp(redis, failingStorage as any);
+    const appWithFailingStorage = createApp(store, failingStorage as any);
 
     const res = await request(appWithFailingStorage)
       .post("/auth/login")
@@ -514,7 +495,7 @@ describe("Angelos WhatsApp Authentication Integration Tests", () => {
       .send({ phoneNumber: phone });
 
     const sessionId = loginRes.body.sessionId;
-    const rawStored = await redis.get(`wa_verify:${phone}`);
+    const rawStored = await store.get(`wa_verify:${phone}`);
     const { token } = JSON.parse(rawStored!);
 
     const metaPayload = {

@@ -3,11 +3,11 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import type { StorageAdapter } from "angelos";
-import { RedisClientType } from "redis";
 import { config } from "./config.js";
 import { createVerifier } from "./verifier.js";
 import { SessionService, UserSession } from "./session.js";
 import { PendingLoginService } from "./pendingLogin.js";
+import { IKeyValueStore, InMemoryKeyValueStore, InMemoryStorageAdapter } from "./storage.js";
 
 // Extend Request type to hold the unparsed raw buffer
 export interface AuthenticatedRequest extends Request {
@@ -16,11 +16,14 @@ export interface AuthenticatedRequest extends Request {
   sessionId?: string;
 }
 
-export function createApp(redis: RedisClientType, storageAdapter: StorageAdapter) {
+export function createApp(store?: IKeyValueStore, storageAdapter?: StorageAdapter) {
+  const resolvedStore = store || new InMemoryKeyValueStore();
+  const resolvedStorage = storageAdapter || new InMemoryStorageAdapter();
+
   const app = express();
-  const verifier = createVerifier(storageAdapter);
-  const sessionService = new SessionService(redis);
-  const pendingLoginService = new PendingLoginService(redis);
+  const verifier = createVerifier(resolvedStorage);
+  const sessionService = new SessionService(resolvedStore);
+  const pendingLoginService = new PendingLoginService(resolvedStore);
 
   // Trust first proxy if running behind tunnel / proxy
   app.set("trust proxy", 1);
@@ -243,12 +246,13 @@ export function createApp(redis: RedisClientType, storageAdapter: StorageAdapter
     }
 
     if (pending.status === "verified" && pending.userSessionId) {
+      const isProd = process.env.NODE_ENV === "production";
       // Set secure HTTP-only cookie
       res.cookie(config.sessionCookieName, pending.userSessionId, {
         httpOnly: true,
         signed: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
         maxAge: config.sessionTtlSeconds * 1000,
       });
 
@@ -277,10 +281,16 @@ export function createApp(redis: RedisClientType, storageAdapter: StorageAdapter
    * POST /auth/logout – Log out the authenticated user.
    */
   app.post("/auth/logout", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    const isProd = process.env.NODE_ENV === "production";
     if (req.sessionId) {
       await sessionService.deleteSession(req.sessionId);
     }
-    res.clearCookie(config.sessionCookieName);
+    res.clearCookie(config.sessionCookieName, {
+      httpOnly: true,
+      signed: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
+    });
     return res.json({ success: true, message: "Logged out successfully" });
   });
 

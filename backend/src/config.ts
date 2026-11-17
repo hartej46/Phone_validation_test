@@ -12,7 +12,6 @@ export const config = {
   metaWhatsappTemplateName: process.env.META_WHATSAPP_TEMPLATE_NAME || "",
   metaWhatsappTemplateLanguage: process.env.META_WHATSAPP_TEMPLATE_LANGUAGE || "en_US",
   metaGraphApiVersion: process.env.META_GRAPH_API_VERSION || "v22.0",
-  redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
   sessionSecret: process.env.SESSION_SECRET || "default_dev_secret_key_12345",
   sessionCookieName: "angelos_demo_sid",
   sessionTtlSeconds: 86400, // 24 hours

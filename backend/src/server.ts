@@ -1,15 +1,16 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
-import { getRedisClient, createRedisStorageAdapter } from "./redis.js";
+import { InMemoryKeyValueStore, InMemoryStorageAdapter } from "./storage.js";
 
 async function startServer() {
   try {
-    const redis = await getRedisClient();
-    const storageAdapter = createRedisStorageAdapter(redis);
-    const app = createApp(redis, storageAdapter);
+    const store = new InMemoryKeyValueStore();
+    const storageAdapter = new InMemoryStorageAdapter(store);
+    const app = createApp(store, storageAdapter);
 
     app.listen(config.port, () => {
       console.log(`🚀 Angelos Auth Backend listening on http://localhost:${config.port}`);
+      console.log(`💾 Storage Mode: In-House Memory (No Redis required)`);
       console.log(`📱 WhatsApp Business Number: ${config.whatsappBusinessNumber || "Not configured"}`);
       console.log(`🌐 Allowed Client URL: ${config.clientUrl}`);
     });
