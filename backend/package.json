@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "postinstall": "node -e \"import('fs').then(fs => { const p = './node_modules/angelos/dist'; if (fs.existsSync(p + '/index.mjs') && !fs.existsSync(p + '/index.js')) fs.copyFileSync(p + '/index.mjs', p + '/index.js'); })\"",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
