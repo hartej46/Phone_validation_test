@@ -1,5 +1,10 @@
 # WhatsApp Authentication Demo with Angelos
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-phone--validation--test.vercel.app-25D366?style=for-the-badge&logo=vercel&logoColor=white)](https://phone-validation-test.vercel.app/)
+
+> 🌐 **Live Demo:** [https://phone-validation-test.vercel.app](https://phone-validation-test.vercel.app/)  
+> 🚀 **Backend API:** [https://phone-validation-test.onrender.com](https://phone-validation-test.onrender.com)
+
 A production-style demonstration of passwordless, SMS-free authentication using the published npm package [`angelos`](https://www.npmjs.com/package/angelos).
 
 Users sign in using their phone number and verify their identity by sending a short, cryptographically verified message through WhatsApp.
@@ -10,8 +15,8 @@ Users sign in using their phone number and verify their identity by sending a sh
 
 ```
 +--------------------+        +---------------------+        +--------------------+
-|  Browser Frontend  |        |   Express Backend   |        |   Redis Storage    |
-| (React+TS+Tailwind)|        |  (Angelos Verifier) |        |    (NX + TTL)      |
+|  Browser Frontend  |        |   Express Backend   |        |  In-Memory Storage  |
+| (React+TS+Tailwind)|        |  (Angelos Verifier) |        |     (TTL + NX)      |
 +--------------------+        +---------------------+        +--------------------+
          |                               |                              |
          | 1. POST /auth/login {phone}   |                              |
@@ -60,7 +65,7 @@ Users sign in using their phone number and verify their identity by sending a sh
 ## Features
 
 - **Genuine Angelos Integration:** Uses the actual `angelos` npm package for session creation, QR generation, constant-time verification, and session replay protection.
-- **Atomic Redis Storage Adapter:** Implements `StorageAdapter` (`get`, `setIfAbsent` with Redis `NX` and `EX`, and `delete`).
+- **In-House Memory Storage Adapter:** Zero-dependency `StorageAdapter` implementing atomic `setIfAbsent`, TTL expiration, and session replay prevention without requiring an external database.
 - **Signature Verification:** Preserves pristine HTTP raw buffer before JSON parsing to validate Meta's `X-Hub-Signature-256` HMAC sha256 header.
 - **Session Replay & Timing Attack Protection:** Sessions are deleted atomically upon verification. Comparisons use constant-time operations.
 - **Modern Minimal UI:** Clean, responsive design inspired by minimal modern web guidelines using Tailwind CSS, country code selection, QR view, countdown timer, and protected dashboard.
