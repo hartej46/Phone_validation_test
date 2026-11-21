@@ -118,9 +118,6 @@ META_WEBHOOK_VERIFY_TOKEN=your_custom_verify_token
 # Meta App Secret (App settings > Basic > App Secret)
 META_APP_SECRET=your_meta_app_secret
 
-# Redis URL
-REDIS_URL=redis://localhost:6379
-
 # Cookie session signing secret
 SESSION_SECRET=your_random_session_secret
 ```
